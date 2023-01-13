@@ -38,8 +38,8 @@ def get_model(arch):
         raise ValueError('Invalid architecture: ', args.arch)
     return network
 
-def contrastiveModule(input_arrayy,random_degrees,device):
-    input_array=input_arrayy.clone().detach().cpu()
+def targetTransformationModule(input_arrayy, random_degrees, device):
+    # input_array=input_arrayy.clone().detach().cpu()
     input_arrayl=np.concatenate([input_array,np.zeros([input_array.shape[0], 1])], axis=1)
     for i in range(len(random_degrees)):
         q = R.from_euler('xyz', [0, 0, random_degrees[i]], degrees=True)
@@ -47,8 +47,8 @@ def contrastiveModule(input_arrayy,random_degrees,device):
     input_array=torch.tensor(input_arrayl[:,:-1],device=device)
     return input_array
 
-def featContrastiveModule(feat,device):
-    feat_clone = feat.clone().detach().cpu()
+def featTransformationModule(feat, device):
+    # feat_clone = feat.clone().detach().cpu()
     feat_xyz=torch.transpose(feat_clone,1,2).numpy()
     random_degrees=np.random.randint(1,90,feat.shape[0])
     for i in range (feat.shape[0]):
@@ -203,14 +203,14 @@ def train(args, **kwargs):
             for batch_id, (feat, targ, _, _) in enumerate(train_loader):
                 feat, targ = feat.to(device), targ.to(device)
                 optimizer.zero_grad()
-                feat_contrast, random_degrees = featContrastiveModule(feat, device)
+                feat_contrast, random_degrees = featTransformationModule(feat, device)
                 pred = network(feat)
                 train_outs.append(pred.cpu().detach().numpy())
                 train_targets.append(targ.cpu().detach().numpy())
                 loss = criterion(pred, targ)
                 loss = torch.mean(loss)
 
-                pred_c = contrastiveModule(pred, random_degrees, device)
+                pred_c = targetTransformationModule(pred, random_degrees, device)
 
                 v_2=network(feat_contrast)
                 loss_2 = 0
