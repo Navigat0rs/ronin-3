@@ -430,6 +430,8 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    run["parameters"] = args
+
     np.set_printoptions(formatter={'all': lambda x: '{:.6f}'.format(x)})
 
     if args.mode == 'train':
