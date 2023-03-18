@@ -20,6 +20,12 @@ from scipy.spatial.transform import Rotation as R
 from torch.nn.functional import normalize
 
 import neptune.new as neptune
+from torchviz import make_dot
+from graphviz import Source
+import pydot
+import torchviz
+import graphviz
+
 
 
 
@@ -49,9 +55,10 @@ def targetTransformationModule(input_array, random_degrees, device):
     theta = math.pi / 4  # angle of rotation in radians
     cos_theta = math.cos(theta)
     sin_theta = math.sin(theta)
+    random_torch_rotation=[]
 
     # rotation matrix
-    Rz = torch.tensor([[cos_theta, -sin_theta, 0],
+    Rzz = torch.tensor([[cos_theta, -sin_theta, 0],
                        [sin_theta, cos_theta, 0],
                        [0, 0, 1]],device=device)
 
@@ -59,10 +66,22 @@ def targetTransformationModule(input_array, random_degrees, device):
     input_arrayy = torch.cat([input_arrayy, zeros], dim=1)
 
 
-    # for i in range(len(random_degrees)):
-    #     q = R.from_euler('xyz', [0, 0, random_degrees[i]], degrees=True)
-    #     input_arrayl[i]=q.apply(input_arrayl[i])
-    input_arrayy=torch.mm(input_arrayy,Rz)
+    for i in range(len(random_degrees)):
+        # q = R.from_euler('xyz', [0, 0, random_degrees[i]], degrees=True)
+        # input_arrayl[i]=q.apply(input_arrayl[i])
+        theta = random_degrees[i]  # angle of rotation in radians
+        cos_theta = math.cos(theta)
+        sin_theta = math.sin(theta)
+        # rotation matrix
+        Rz = torch.tensor([[cos_theta, -sin_theta, 0],
+                           [sin_theta, cos_theta, 0],
+                           [0, 0, 1]], device=device)
+        random_torch_rotation.append(Rz)
+    m=input_arrayy.clone()
+
+    for i in range (len(input_arrayy)):
+        input_arrayy[i]=torch.mm(m[i].unsqueeze(0),random_torch_rotation[i])[0]
+    # input_arrayy=torch.mm(input_arrayy,Rzz)
     input_arrayy=input_arrayy[:,:-1]
     # input_array=torch.tensor(input_arrayl[:,:-1],device=device)
 
@@ -201,9 +220,9 @@ def train(args, **kwargs):
     print('Total number of parameters: ', total_params)
 
     criterion_cosine = torch.nn.CosineSimilarity(dim=1)
-    criterion_cosineEmbedded=torch.nn.CosineEmbeddingLoss()
+    criterion_cosineEmbedded=torch.nn.CosineEmbeddingLoss(margin=0.0)
     criterion = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(network.parameters(), args.lr)
+    optimizer = torch.optim.Adam(network.parameters(), args.lr,weight_decay=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=True, eps=1e-12)
 
     start_epoch = 0
@@ -249,7 +268,6 @@ def train(args, **kwargs):
             train_outs, train_targets = [], []
             for batch_id, (feat, targ, _, _) in enumerate(train_loader):
                 feat, targ = feat.to(device), targ.to(device)
-                optimizer.zero_grad()
                 feat_contrast, random_degrees = featTransformationModule(feat, device)
                 pred = network(feat)
                 train_outs.append(pred.cpu().detach().numpy())
@@ -267,15 +285,27 @@ def train(args, **kwargs):
                     if (i==0):
                         loss_2=-criterion_cosine(torch.unsqueeze(v_2[i], 0), torch.unsqueeze(pred_c[i], 0)).requires_grad_(True)
                     else:
-                        if (torch.norm(pred_copy[i]) > 0.5):
-                            loss_2 -= criterion_cosine(torch.unsqueeze(v_2[i], 0), torch.unsqueeze(pred_c[i], 0)).requires_grad_(True)
-                        else:
-                            loss_2 += 0
+                        # if (torch.norm(pred_copy[i]) > 0.5):
+                        loss_2 -= criterion_cosine(torch.unsqueeze(v_2[i], 0), torch.unsqueeze(pred_c[i], 0)).requires_grad_(True)
+                        # else:
+                        #     loss_2 += 0
 
                 loss_2=loss_2/len(pred)
-                loss_1 = criterion(pred, targ)
-                loss_1=torch.mean(loss_1)
-                total_loss=loss_2+loss_1
+                # loss_1 = criterion(pred, targ)
+                # loss_1=torch.mean(loss_1)
+                # total_loss=(0.1*loss_2)+loss_1
+                total_loss=criterion_cosineEmbedded(v_2,pred_c,torch.ones(1,device=device))
+                # dott=torchviz.make_dot(total_loss,params=dict(network.named_parameters()))
+                # # dottt=make_dot(total_loss, params=dict(network.named_parameters()))
+                # dott.format = 'png'
+                # dott.render('graph', cleanup=True)
+                # Source.from_file('graph.pdf')
+
+                # Log the graph image to neptune.ai
+                # run['navigator/graph'].upload('graph.png')
+                # graph = pydot.graph_from_dot_data(dot)[0]
+                # graph.write_png('graph.png')
+                optimizer.zero_grad()
                 total_loss.backward()
                 optimizer.step()
                 step += 1
@@ -289,8 +319,8 @@ def train(args, **kwargs):
                 epoch, end_t - start_t, train_losses, np.average(train_losses)))
             train_losses_all.append(np.average(train_losses))
             run["navigator/train/batch/total_loss"].append(np.average(train_losses))
-            run["navigator/train/batch/CosineSimilarity"].append(loss_2)
-            print("navigator/Cosine similarity: "+str(loss_2))
+            run["navigator/train/batch/CosineSimilarity"].append(total_loss)
+            print("navigator/Cosine similarity: "+str(total_loss))
 
             if summary_writer is not None:
                 add_summary(summary_writer, train_losses, epoch + 1, 'train')
@@ -456,7 +486,7 @@ def test_sequence(args):
             plt.savefig(osp.join(args.out_dir, data + '_gsn.png'))
             model_path_neptune = "navigator/out_dir/"+str(data)+"_gsn.png"
             run[model_path_neptune].upload(osp.join(args.out_dir, data + '_gsn.png'))
-            # run[model_path_neptune].upload(osp.join(args.out_dir, data + '_gsn.png'))
+            run[model_path_neptune].upload(osp.join(args.out_dir, data + '_gsn.png'))
 
 
         plt.close('all')
