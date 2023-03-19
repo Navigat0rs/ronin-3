@@ -101,7 +101,7 @@ def featTransformationModule(feat, device):
     # random_degrees = [random.uniform(0, math.pi/2) for j in range (feat.shape[0])]
     # random_degrees=[math.pi/90 for j in range (feat.shape[0])]
     random_degrees=[]
-    degrees=[math.pi/90,math.pi/80,math.pi/75,math.pi/70]
+    degrees=[math.pi/18,math.pi/12,math.pi/6,math.pi/9]
     for i in range (feat.shape[0]):
         random_degrees.append(degrees[int(i%4)])
 
