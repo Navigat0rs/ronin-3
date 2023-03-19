@@ -100,7 +100,7 @@ def featTransformationModule(feat, device):
 
     # random_degrees = [random.uniform(0, math.pi/2) for j in range (feat.shape[0])]
     # random_degrees=[math.pi/90 for j in range (feat.shape[0])]
-    random_degrees=[math.pi/90,math.pi/80,math.pi/75,math.pi/70]*(feat.shape[0]/4)
+    random_degrees=[math.pi/90,math.pi/80,math.pi/75,math.pi/70]*int(feat.shape[0]/4)
     for i in range (feat.shape[0]):
         theta = random_degrees[i]  # angle of rotation in radians
         cos_theta = math.cos(theta)
