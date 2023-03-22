@@ -333,8 +333,8 @@ def train(args, **kwargs):
             train_losses_all.append(np.average(train_losses))
             run["navigator/train/batch/total_loss"].append(np.average(train_losses))
             run["navigator/train/batch/CosineSimilarity"].append(total_loss)
-            run["navigator/train/batch/velocity"].append(v_2)
-            run["navigator/train/batch/velocity"].append(pred_c)
+            run["navigator/train/batch/v_2"].append(v_2)
+            run["navigator/train/batch/pred_c"].append(pred_c)
             print("navigator/Cosine similarity: "+str(total_loss))
 
             if summary_writer is not None:
