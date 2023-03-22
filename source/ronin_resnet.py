@@ -98,12 +98,12 @@ def featTransformationModule(feat, device):
                        [sin_thetaa, cos_thetaa, 0],
                        [0, 0, 1]], device=device)
 
-    # random_degrees = [random.uniform(0, math.pi/2) for j in range (feat.shape[0])]
+    random_degrees = [random.uniform(0, math.pi/2) for j in range (feat.shape[0])]
     # random_degrees=[math.pi/90 for j in range (feat.shape[0])]
-    random_degrees=[]
-    degrees=[math.pi/18,math.pi/12,math.pi/6,math.pi/9]
-    for i in range (feat.shape[0]):
-        random_degrees.append(degrees[int(i%4)])
+    # random_degrees=[]
+    # degrees=[math.pi/18,math.pi/12,math.pi/6,math.pi/9]
+    # for i in range (feat.shape[0]):
+    #     random_degrees.append(degrees[int(i%4)])
 
     for i in range (feat.shape[0]):
         theta = random_degrees[i]  # angle of rotation in radians
@@ -275,8 +275,11 @@ def train(args, **kwargs):
             train_outs, train_targets = [], []
             for batch_id, (feat, targ, _, _) in enumerate(train_loader):
                 feat, targ = feat.to(device), targ.to(device)
-                feat_contrast, random_degrees = featTransformationModule(feat, device)
+                feat_copy=feat.detach().requires_grad_(False)
                 pred = network(feat)
+                feat_contrast, random_degrees = featTransformationModule(feat_copy, device)
+                feat_contrast_c=feat_contrast.detach().requires_grad_(False)
+
                 train_outs.append(pred.cpu().detach().numpy())
                 train_targets.append(targ.cpu().detach().numpy())
                 feat=feat.detach().requires_grad_(False)
@@ -284,7 +287,7 @@ def train(args, **kwargs):
 
                 pred_c = targetTransformationModule(pred, random_degrees, device)
 
-                v_2=network(feat_contrast)
+                v_2=network(feat_contrast_c)
                 # loss_2=criterion_cosineEmbedded(pred_c,v_2,torch.ones(len(pred_c),device=device))
 
 
@@ -298,10 +301,13 @@ def train(args, **kwargs):
                         #     loss_2 += 0
 
                 loss_2=loss_2/len(pred)
-                # loss_1 = criterion(pred, targ)
-                # loss_1=torch.mean(loss_1)
+                # import pdb
+                # pdb.set_trace()
+                loss_1 = criterion(v_2, pred_c)
+                loss_1=torch.mean(loss_1)
                 # total_loss=(0.1*loss_2)+loss_1
-                total_loss=criterion_cosineEmbedded(v_2,pred_c,torch.ones(1,device=device))
+                # total_loss=criterion_cosineEmbedded(v_2,pred_c,torch.ones(1,device=device))
+                total_loss=loss_1
                 # dott=torchviz.make_dot(total_loss,params=dict(network.named_parameters()))
                 # # dottt=make_dot(total_loss, params=dict(network.named_parameters()))
                 # dott.format = 'png'
@@ -327,6 +333,8 @@ def train(args, **kwargs):
             train_losses_all.append(np.average(train_losses))
             run["navigator/train/batch/total_loss"].append(np.average(train_losses))
             run["navigator/train/batch/CosineSimilarity"].append(total_loss)
+            run["navigator/train/batch/velocity"].append(v_2)
+            run["navigator/train/batch/velocity"].append(pred_c)
             print("navigator/Cosine similarity: "+str(total_loss))
 
             if summary_writer is not None:
