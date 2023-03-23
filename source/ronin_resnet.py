@@ -305,12 +305,12 @@ def train(args, **kwargs):
                 # import pdb
                 # pdb.set_trace()
                 loss_1 = criterion(v_2, pred_c)
-                loss_3=criterion(pred_copy,targ)
+                # loss_3=criterion(pred_copy,targ)
                 loss_1=torch.mean(loss_1)
-                loss_3 = torch.mean(loss_3)
+                # loss_3 = torch.mean(loss_3)
                 # total_loss=(0.1*loss_2)+loss_1
                 # total_loss=criterion_cosineEmbedded(v_2,pred_c,torch.ones(1,device=device))
-                total_loss=loss_1+loss_3
+                total_loss=loss_1
                 if (z==0):
                     print("v2: ",v_2[0])
                     print("pred_c",pred_c[0])
