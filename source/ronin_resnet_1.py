@@ -98,12 +98,12 @@ def featTransformationModule(feat, device):
                        [sin_thetaa, cos_thetaa, 0],
                        [0, 0, 1]], device=device)
 
-    random_degrees = [random.uniform(0, math.pi/2) for j in range (feat.shape[0])]
-    # random_degrees=[math.pi/90 for j in range (feat.shape[0])]
-    # random_degrees=[]
-    # degrees=[math.pi/18,math.pi/12,math.pi/6,math.pi/9]
-    # for i in range (feat.shape[0]):
-    #     random_degrees.append(degrees[int(i%4)])
+    # random_degrees = [random.uniform(0, math.pi/2) for j in range (feat.shape[0])]
+    # random_degrees=[math.pi/60 for j in range (feat.shape[0])]
+    random_degrees=[]
+    degrees=[math.pi/18,math.pi/12,math.pi/6,math.pi/9]
+    for i in range (feat.shape[0]):
+        random_degrees.append(degrees[int(i%4)])
 
     for i in range (feat.shape[0]):
         theta = random_degrees[i]  # angle of rotation in radians
@@ -226,10 +226,8 @@ def train(args, **kwargs):
     total_params = network.get_num_params()
     print('Total number of parameters: ', total_params)
 
-    criterion_cosine = torch.nn.CosineSimilarity(dim=1)
-    criterion_cosineEmbedded=torch.nn.CosineEmbeddingLoss(margin=0.0)
     criterion = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(network.parameters(), args.lr,weight_decay=0.001)
+    optimizer = torch.optim.Adam(network.parameters(), args.lr)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=True, eps=1e-12)
 
     start_epoch = 0
@@ -273,11 +271,13 @@ def train(args, **kwargs):
             start_t = time.time()
             network.train()
             train_outs, train_targets = [], []
-            z=0
             for batch_id, (feat, targ, _, _) in enumerate(train_loader):
+                optimizer.zero_grad()
                 feat, targ = feat.to(device), targ.to(device)
                 feat_copy=feat.detach().requires_grad_(False)
+                # network.eval()
                 pred = network(feat)
+                # network.train()
                 feat_contrast, random_degrees = featTransformationModule(feat_copy, device)
                 feat_contrast_c=feat_contrast.detach().requires_grad_(False)
 
@@ -286,46 +286,29 @@ def train(args, **kwargs):
                 feat=feat.detach().requires_grad_(False)
                 pred_copy=pred.detach().requires_grad_(False)
 
-                pred_c = targetTransformationModule(pred, random_degrees, device)
-
+                random_degrees_tensor=torch.tensor(random_degrees,requires_grad=False,device=device)
                 v_2=network(feat_contrast_c)
-                # loss_2=criterion_cosineEmbedded(pred_c,v_2,torch.ones(len(pred_c),device=device))
 
+                cross = pred[:, 0] * v_2[:, 1] - pred[:, 1] * v_2[:, 0]
+                dot = torch.sum(pred * v_2, dim=1)
+                angle_rad_pred = torch.atan2(cross, dot)
 
-                for i in range(len(pred)):
-                    if (i==0):
-                        loss_2=-criterion_cosine(torch.unsqueeze(v_2[i], 0), torch.unsqueeze(pred_c[i], 0)).requires_grad_(True)
-                    else:
-                        # if (torch.norm(pred_copy[i]) > 0.5):
-                        loss_2 -= criterion_cosine(torch.unsqueeze(v_2[i], 0), torch.unsqueeze(pred_c[i], 0)).requires_grad_(True)
-                        # else:
-                        #     loss_2 += 0
-
-                loss_2=loss_2/len(pred)
                 # import pdb
                 # pdb.set_trace()
-                loss_1 = criterion(v_2, pred_c)
-                loss_3=criterion(pred_copy,targ)
-                loss_1=torch.mean(loss_1)
-                loss_3 = torch.mean(loss_3)
-                # total_loss=(0.1*loss_2)+loss_1
-                # total_loss=criterion_cosineEmbedded(v_2,pred_c,torch.ones(1,device=device))
-                total_loss=loss_1+loss_3
-                if (z==0):
-                    print("v2: ",v_2[0])
-                    print("pred_c",pred_c[0])
-                    z+=1
-                # dott=torchviz.make_dot(total_loss,params=dict(network.named_parameters()))
-                # # dottt=make_dot(total_loss, params=dict(network.named_parameters()))
-                # dott.format = 'png'
-                # dott.render('graph', cleanup=True)
-                # Source.from_file('graph.pdf')
+                # loss_2=criterion_cosineEmbedded(pred_c,v_2,torch.ones(len(pred_c),device=device))
+                loss=criterion(angle_rad_pred,random_degrees_tensor)
+                criterion2=torch.nn.MSELoss()
+                loss_2=0
+                for i in range (len(pred)):
+                    if (i==0):
+                        loss_3=criterion2(pred,targ)
+                        loss_2+=torch.mean(loss_3)
+                    else:
+                        loss_2+=0
+                total_loss=torch.mean(loss)+loss_2
+                # import pdb
+                # pdb.set_trace()
 
-                # Log the graph image to neptune.ai
-                # run['navigator/graph'].upload('graph.png')
-                # graph = pydot.graph_from_dot_data(dot)[0]
-                # graph.write_png('graph.png')
-                optimizer.zero_grad()
                 total_loss.backward()
                 optimizer.step()
                 step += 1
@@ -338,10 +321,8 @@ def train(args, **kwargs):
             print('Epoch {}, time usage: {:.3f}s, average loss: {}/{:.6f}'.format(
                 epoch, end_t - start_t, train_losses, np.average(train_losses)))
             train_losses_all.append(np.average(train_losses))
-            run["navigator/train/batch/total_loss"].append(np.average(train_losses))
-            run["navigator/train/batch/CosineSimilarity"].append(total_loss)
-            run["navigator/train/batch/v_2"].append(v_2)
-            run["navigator/train/batch/pred_c"].append(pred_c)
+            # run["navigator/train/batch/total_loss"].append(np.average(train_losses))
+            # run["navigator/train/batch/CosineSimilarity"].append(total_loss)
             print("navigator/Cosine similarity: "+str(total_loss))
 
             if summary_writer is not None:
@@ -507,8 +488,8 @@ def test_sequence(args):
                     np.concatenate([pos_pred[:, :2], pos_gt[:, :2]], axis=1))
             plt.savefig(osp.join(args.out_dir, data + '_gsn.png'))
             model_path_neptune = "navigator/out_dir/"+str(data)+"_gsn.png"
-            run[model_path_neptune].upload(osp.join(args.out_dir, data + '_gsn.png'))
-            run[model_path_neptune].upload(osp.join(args.out_dir, data + '_gsn.png'))
+            # run[model_path_neptune].upload(osp.join(args.out_dir, data + '_gsn.png'))
+            # run[model_path_neptune].upload(osp.join(args.out_dir, data + '_gsn.png'))
 
 
         plt.close('all')
@@ -540,10 +521,10 @@ def write_config(args):
 
 
 if __name__ == '__main__':
-    run = neptune.init_run(
-        project="Navigator/Navigator",
-        api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJmYTk4NGQwYS1lMWQxLTQ3YWQtYmQ3NC1lMzBjNDVmNDI3MzAifQ==",
-    )
+    # run = neptune.init_run(
+    #     project="Navigator/Navigator",
+    #     api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJmYTk4NGQwYS1lMWQxLTQ3YWQtYmQ3NC1lMzBjNDVmNDI3MzAifQ==",
+    # )
 
 
     import argparse
@@ -578,7 +559,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     np.set_printoptions(formatter={'all': lambda x: '{:.6f}'.format(x)})
-    run["parameters"] = args
+    # run["parameters"] = args
 
     if args.mode == 'train':
         train(args)
