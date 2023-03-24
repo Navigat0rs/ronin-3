@@ -117,6 +117,7 @@ def featTransformationModule(feat, device):
         random_torch_rotation.append(Rz)
 
     feat_xyz=torch.transpose(feat_clone,1,2)
+
     # pdb.set_trace()
     m=feat_xyz.clone()
     # print(feat_xyz[:,:,0:3].shape)
