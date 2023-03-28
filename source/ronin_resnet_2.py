@@ -33,7 +33,7 @@ _input_channel, _output_channel = 6, 2
 _fc_config = {'fc_dim': 512, 'in_dim': 7, 'dropout': 0.5, 'trans_planes': 128}
 
 
-def intergreate_acce(imu, init_velocity):
+def intergreate_acce(imu, init_velocity,device):
     batch_size = imu.shape[0]
     n_sequence = imu.shape[2]
 
@@ -304,13 +304,17 @@ def train(args, **kwargs):
             network.train()
             train_outs, train_targets = [], []
             z=0
-            previous_labels=[torch.zeros[1,3]]
-            for batch_id, (feat, targ, _, _) in enumerate(train_loader):
+            previous_label=torch.zeros(3,device=device)
+            for batch_id, (feat, targ, seq_id, frame_id) in enumerate(train_loader):
+                # import pdb
+                # pdb.set_trace()
                 feat, targ = feat.to(device), targ.to(device)
                 feat_copy=feat.detach().requires_grad_(False)
 
                 feat_copy_2=feat.detach().requires_grad_(False)
-                pseudo=intergreate_acce()
+                pseudo_xyz=intergreate_acce(feat_copy_2,previous_label,device)
+                pseudo_labels=pseudo_xyz[:,0:2]
+                # previous_label=pseudo_xyz[-1,:]
 
                 pred = network(feat)
                 feat_contrast, random_degrees = featTransformationModule(feat_copy, device)
@@ -323,10 +327,10 @@ def train(args, **kwargs):
 
                 pred_c = targetTransformationModule(pred, random_degrees, device)
 
-                v_2=network(feat_contrast_c)
+                # v_2=network(feat_contrast_c)
                 # loss_2=criterion_cosineEmbedded(pred_c,v_2,torch.ones(len(pred_c),device=device))
 
-                loss_1 = criterion_cosineEmbedded(v_2, pred_c)
+                loss_1 = criterion(pred, pseudo_labels)
 
                 loss_1=torch.mean(loss_1)
                 total_loss=loss_1
@@ -344,10 +348,10 @@ def train(args, **kwargs):
             print('Epoch {}, time usage: {:.3f}s, average loss: {}/{:.6f}'.format(
                 epoch, end_t - start_t, train_losses, np.average(train_losses)))
             train_losses_all.append(np.average(train_losses))
-            run["navigator/train/batch/total_loss"].append(np.average(train_losses))
-            run["navigator/train/batch/CosineSimilarity"].append(total_loss)
-            run["navigator/train/batch/v_2"].append(v_2)
-            run["navigator/train/batch/pred_c"].append(pred_c)
+            # run["navigator/train/batch/total_loss"].append(np.average(train_losses))
+            # run["navigator/train/batch/CosineSimilarity"].append(total_loss)
+            # run["navigator/train/batch/v_2"].append(v_2)
+            # run["navigator/train/batch/pred_c"].append(pred_c)
             print("navigator/Cosine similarity: "+str(total_loss))
 
             if summary_writer is not None:
