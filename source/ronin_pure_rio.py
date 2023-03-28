@@ -355,8 +355,8 @@ def train(args, **kwargs):
                         torch.save({'model_state_dict': network.state_dict(),
                                     'epoch': epoch,
                                     'optimizer_state_dict': optimizer.state_dict()}, model_path)
-                        # model_path_neptune="navigator/model_checkpoints/checkpoint_"+str(epoch)
-                        # run[model_path_neptune].upload(model_path)
+                        model_path_neptune="navigator/model_checkpoints/checkpoint_"+str(epoch)
+                        run[model_path_neptune].upload(model_path)
                         print('Model saved to ', model_path)
 
             total_epoch = epoch
@@ -371,8 +371,8 @@ def train(args, **kwargs):
         torch.save({'model_state_dict': network.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'epoch': total_epoch}, model_path)
-        # model_path_neptune = "navigator/model_checkpoints/checkpoint_" + str(epoch)
-        # run[model_path_neptune].upload(model_path)
+        model_path_neptune = "navigator/model_checkpoints/checkpoint_" + str(epoch)
+        run[model_path_neptune].upload(model_path)
         print('Checkpoint saved to ', model_path)
 
     return train_losses_all, val_losses_all
