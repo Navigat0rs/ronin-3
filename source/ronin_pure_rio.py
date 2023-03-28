@@ -297,7 +297,7 @@ def train(args, **kwargs):
                         loss_2=-criterion_cosine(torch.unsqueeze(v_2[i], 0), torch.unsqueeze(pred_c[i], 0)).requires_grad_(True)
                     else:
                         if (torch.norm(pred_c[i]) > 0.5):
-                            loss_2 -= criterion_cosine(torch.unsqueeze(v_2[i], 0), torch.unsqueeze(pred_c[i], 0)).requires_grad_(True)
+                            loss_2 += 1-criterion_cosine(torch.unsqueeze(v_2[i], 0), torch.unsqueeze(pred_c[i], 0)).requires_grad_(True)
                         else:
                             loss_2 += 0
 
