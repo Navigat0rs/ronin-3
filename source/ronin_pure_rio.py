@@ -304,7 +304,7 @@ def train(args, **kwargs):
                 loss_2=loss_2/len(pred)
                 loss_1 = criterion(pred,targ)
                 loss_1=torch.mean(loss_1)
-                total_loss=loss_1+0.1*loss_2
+                total_loss=loss_1+(0.1*loss_1*loss_2)
 
                 optimizer.zero_grad()
                 total_loss.backward()
@@ -320,9 +320,9 @@ def train(args, **kwargs):
                 epoch, end_t - start_t, train_losses, np.average(train_losses)))
             train_losses_all.append(np.average(train_losses))
             run["navigator/train/batch/total_loss"].append(np.average(train_losses))
-            run["navigator/train/batch/CosineSimilarity"].append(loss_2)
+            run["navigator/train/batch/CosineSimilarity"].append(0.1*loss_1*loss_2)
             run["navigator/train/batch/MSELoss"].append(loss_1)
-            print("navigator/Cosine similarity: "+str(loss_2))
+            print("navigator/Cosine similarity: "+str(0.1*loss_1*loss_2))
             print("navigator/MSELoss: "+str(loss_1))
             print("navigator/total_loss: "+str(total_loss))
 
