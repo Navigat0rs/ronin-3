@@ -314,9 +314,13 @@ def train(args, **kwargs):
                 feat_copy_2=feat.detach().requires_grad_(False)
                 pseudo_xyz=intergreate_acce(feat_copy_2,previous_label,device)
                 pseudo_labels=pseudo_xyz[:,0:2]
-                # previous_label=pseudo_xyz[-1,:]
+                previous_label=pseudo_xyz[-1,:]
+
+                pseudo_labels_n=torch.nn.functional.normalize(pseudo_labels, p=2.0, dim=0, eps=1e-12, out=None)
+
 
                 pred = network(feat)
+                pred_n = torch.nn.functional.normalize(pred, p=2.0, dim=0, eps=1e-12, out=None)
                 feat_contrast, random_degrees = featTransformationModule(feat_copy, device)
                 feat_contrast_c=feat_contrast.detach().requires_grad_(False)
 
@@ -330,7 +334,7 @@ def train(args, **kwargs):
                 # v_2=network(feat_contrast_c)
                 # loss_2=criterion_cosineEmbedded(pred_c,v_2,torch.ones(len(pred_c),device=device))
 
-                loss_1 = criterion(pred, pseudo_labels)
+                loss_1 = criterion(pred_n, pseudo_labels_n)
 
                 loss_1=torch.mean(loss_1)
                 total_loss=loss_1
