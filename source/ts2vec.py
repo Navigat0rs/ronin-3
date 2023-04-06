@@ -6,6 +6,16 @@ from models.encoder import TSEncoder
 from models.losses import hierarchical_contrastive_loss
 from utils import take_per_row, split_with_nan, centerize_vary_length_series, torch_pad_nan
 import math
+from os import path as osp
+
+import neptune.new as neptune
+
+def init_neptune():
+    run= neptune.init_run(
+    project="Navigator/Navigator",
+    api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJmYTk4NGQwYS1lMWQxLTQ3YWQtYmQ3NC1lMzBjNDVmNDI3MzAifQ==",
+)
+    return run
 
 
 class TS2Vec:
@@ -59,7 +69,7 @@ class TS2Vec:
         self.n_epochs = 0
         self.n_iters = 0
 
-    def fit(self, train_data,n_epochs=None, n_iters=None, verbose=False):
+    def fit(self, train_data,n_epochs=None, n_iters=None, verbose=False,args=None):
         ''' Training the TS2Vec model.
 
         Args:
@@ -72,7 +82,8 @@ class TS2Vec:
             loss_log: a list containing the training losses on each epoch.
         '''
         # assert train_data.ndim == 3
-
+        run=init_neptune()
+        run['parameters']=args
         if n_iters is None and n_epochs is None:
             n_iters = 200 if train_data.size <= 100000 else 600  # default param for n_iters
 
@@ -163,10 +174,23 @@ class TS2Vec:
             loss_log.append(cum_loss)
             if verbose:
                 print(f"Epoch #{self.n_epochs}: loss={cum_loss}")
+                run["ronin/train/batch/ts2_vec_loss"].append(cum_loss)
             self.n_epochs += 1
 
             if self.after_epoch_callback is not None:
                 self.after_epoch_callback(self, cum_loss)
+
+            if (self.n_epochs%10==0):
+                model_path = osp.join(args.out_dir, 'checkpoints', 'ts2vec_checkpoint_%d.pt' % self.n_epochs)
+                torch.save({'model_state_dict': self._net.state_dict(),
+                            'optimizer_state_dict': optimizer.state_dict(),
+                            'epoch': self.n_epochs}, model_path)
+                torch.save({'model_state_dict': self.net.state_dict(),
+                            'optimizer_state_dict': optimizer.state_dict(),
+                            'epoch': self.n_epochs}, model_path)
+                print('Checkpoint saved to ', model_path)
+                model_path_neptune = "ronin/model_checkpoints/ts2vec_checkpoint_" + str(self.n_epochs)
+                run[model_path_neptune].upload(model_path)
 
         return loss_log
 

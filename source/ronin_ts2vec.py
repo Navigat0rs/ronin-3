@@ -26,6 +26,8 @@ from transformations import *
 from metric import compute_ate_rte
 from model_resnet1d import *
 
+
+
 _input_channel, _output_channel = 6, 2
 _fc_config = {'fc_dim': 512, 'in_dim': 7, 'dropout': 0.5, 'trans_planes': 128}
 
@@ -198,7 +200,8 @@ def train(args, **kwargs):
             train_data=train_dataset,
             n_epochs=200,
             n_iters=None,
-            verbose=True
+            verbose=True,
+            args=args
         )
         # for epoch in range(start_epoch, args.epochs):
         #     start_t = time.time()
@@ -418,6 +421,7 @@ def write_config(args):
 
 
 if __name__ == '__main__':
+
     import argparse
 
     parser = argparse.ArgumentParser()
