@@ -182,15 +182,18 @@ class TS2Vec:
 
             if (self.n_epochs%10==0):
                 model_path = osp.join(args.out_dir, 'checkpoints', 'ts2vec_checkpoint_%d.pt' % self.n_epochs)
+                model_path2=osp.join(args.out_dir, 'checkpoints', 'ts2vec_checkpoint_dummy_%d.pt' % self.n_epochs)
                 torch.save({'model_state_dict': self._net.state_dict(),
                             'optimizer_state_dict': optimizer.state_dict(),
-                            'epoch': self.n_epochs}, model_path)
+                            'epoch': self.n_epochs}, model_path2)
                 torch.save({'model_state_dict': self.net.state_dict(),
                             'optimizer_state_dict': optimizer.state_dict(),
                             'epoch': self.n_epochs}, model_path)
                 print('Checkpoint saved to ', model_path)
                 model_path_neptune = "ronin/model_checkpoints/ts2vec_checkpoint_" + str(self.n_epochs)
+                model_path_neptune2 = "ronin/model_checkpoints/ts2vec_checkpoint_dummy_" + str(self.n_epochs)
                 run[model_path_neptune].upload(model_path)
+                run[model_path_neptune2].upload(model_path2)
 
         return loss_log
 
