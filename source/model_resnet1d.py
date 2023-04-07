@@ -162,6 +162,7 @@ class ResNet1D(nn.Module):
             nn.MaxPool1d(kernel_size=3, stride=2, padding=1)
         )
 
+
         # Residual groups
         self.planes = [self.base_plane * (2 ** i) for i in range(len(group_sizes))]
         kernel_size = kwargs.get('kernel_size', 3)
@@ -224,3 +225,18 @@ class ResNet1D(nn.Module):
 
     def get_num_params(self):
         return sum(p.numel() for p in self.parameters() if p.requires_grad)
+
+class ThreeLayerNet(nn.Module):
+    def __init__(self):
+        super(ThreeLayerNet, self).__init__()
+        self.fc1 = nn.Linear(320*200, 1024)
+        self.fc2 = nn.Linear(1024, 256)
+        self.fc3 = nn.Linear(256, 2)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        x = x.reshape(x.size(0), -1)
+        x = self.relu(self.fc1(x))
+        x = self.relu(self.fc2(x))
+        x = self.fc3(x)
+        return x
