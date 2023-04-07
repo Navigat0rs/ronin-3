@@ -229,8 +229,8 @@ class ResNet1D(nn.Module):
 class ThreeLayerNet(nn.Module):
     def __init__(self):
         super(ThreeLayerNet, self).__init__()
-        self.fc1 = nn.Linear(320*200, 1024)
-        self.fc2 = nn.Linear(1024, 256)
+        self.fc1 = nn.Linear(320*200, 512)
+        self.fc2 = nn.Linear(512, 256)
         self.fc3 = nn.Linear(256, 2)
         self.relu = nn.ReLU()
 

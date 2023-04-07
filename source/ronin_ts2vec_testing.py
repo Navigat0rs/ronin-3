@@ -239,6 +239,7 @@ def train(args, **kwargs):
                 train_targets.append(targ.cpu().detach().numpy())
                 loss = criterion(pred, targ)
                 loss = torch.mean(loss)
+                print(loss)
                 loss.backward()
                 optimizer.step()
                 step += 1
