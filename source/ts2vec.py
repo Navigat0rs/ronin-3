@@ -146,8 +146,6 @@ class TS2Vec:
                 out2 = self._net(take_per_row(x, crop_offset + crop_left, crop_eright - crop_left))
                 out2 = out2[:, :crop_l]
 
-                import pdb
-                pdb.set_trace()
 
 
 
@@ -504,8 +502,6 @@ class TS2VecFN:
                 out2 = self._net(take_per_row(x, crop_offset + crop_left, crop_eright - crop_left))
                 out2 = out2[:, :crop_l]
 
-                import pdb
-                pdb.set_trace()
 
 
 
