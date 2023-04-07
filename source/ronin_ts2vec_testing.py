@@ -51,7 +51,7 @@ def get_model(arch):
     return network
 
 
-def run_test(network, data_loader, device, eval_mode=True):
+def run_test(network, data_loader, device,ts2_vec_path ,eval_mode=True):
     targets_all = []
     preds_all = []
     if eval_mode:
@@ -59,6 +59,36 @@ def run_test(network, data_loader, device, eval_mode=True):
     for bid, (feat, targ, _, _) in enumerate(data_loader):
         pred = network(feat.to(device)).cpu().detach().numpy()
         targets_all.append(targ.detach().numpy())
+        preds_all.append(pred)
+    targets_all = np.concatenate(targets_all, axis=0)
+    preds_all = np.concatenate(preds_all, axis=0)
+    return targets_all, preds_all
+
+def run_test_2(network, data_loader, device,ts2_vec_path,eval_mode=True):
+    config = dict(
+        batch_size=16,
+        lr=0.001,
+        output_dims=320,
+        max_train_length=1000
+    )
+    model = TS2Vec(
+        input_dims=6,
+        device=device,
+        **config
+    )
+    model.load(ts2_vec_path)
+    targets_all = []
+    preds_all = []
+    if eval_mode:
+        network.eval()
+    for bid, (feat, targ, _, _) in enumerate(data_loader):
+        feat, targ = feat.to(device), targ.to(device)
+        feat_c = feat.clone()
+        feat_c = torch.transpose(feat_c, 1, 2)
+        feat_c = model.encode(feat_c, encoding_window='full_series' if 0 == 1 else None)
+        feat_c = torch.transpose(torch.tensor(feat_c, requires_grad=False, device=device), 1, 2)
+        pred = network(feat_c.to(device)).cpu().detach().numpy()
+        targets_all.append(targ.cpu().detach().numpy())
         preds_all.append(pred)
     targets_all = np.concatenate(targets_all, axis=0)
     preds_all = np.concatenate(preds_all, axis=0)
@@ -205,7 +235,7 @@ def train(args, **kwargs):
         # checkpoint = torch.load("D:\\000_Mora\\FYP\\ts2vec_checkpoint_200.pt")
         # model.load_state_dict(checkpoint['model_state_dict'])
         # model.eval().to(device)
-        model.load("D:\\000_Mora\\FYP\\ts2vec_checkpoint_200.pt")
+        model.load(args.ts2vec_pretrained)
 
         # import pdb
         # pdb.set_trace()
@@ -362,7 +392,7 @@ def test_sequence(args):
         seq_loader = DataLoader(seq_dataset, batch_size=1024, shuffle=False)
         ind = np.array([i[1] for i in seq_dataset.index_map if i[0] == 0], dtype=np.int)
 
-        targets, preds = run_test(network, seq_loader, device, True)
+        targets, preds = run_test_2(network, seq_loader, device,args.ts2vec_pretrained, True)
         losses = np.mean((targets - preds) ** 2, axis=0)
         preds_seq.append(preds)
         targets_seq.append(targets)
@@ -470,6 +500,7 @@ if __name__ == '__main__':
     parser.add_argument('--model_path', type=str, default=None)
     parser.add_argument('--feature_sigma', type=float, default=0.00001)
     parser.add_argument('--target_sigma', type=float, default=0.00001)
+    parser.add_argument('--ts2vec_pretrained',type=str,default="D:\\000_Mora\\FYP\\ts2vec_checkpoint_200.pt")
 
     args = parser.parse_args()
 
