@@ -25,8 +25,14 @@ from data_glob_speed import *
 from transformations import *
 from metric import compute_ate_rte
 from model_resnet1d import *
+import neptune.new as neptune
 
-
+def init_neptune():
+    run= neptune.init_run(
+    project="Navigator/Navigator",
+    api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJmYTk4NGQwYS1lMWQxLTQ3YWQtYmQ3NC1lMzBjNDVmNDI3MzAifQ==",
+)
+    return run
 
 _input_channel, _output_channel = 320, 2
 _fc_config = {'fc_dim': 512, 'in_dim': 7, 'dropout': 0.5, 'trans_planes': 128}
@@ -269,7 +275,6 @@ def train(args, **kwargs):
                 train_targets.append(targ.cpu().detach().numpy())
                 loss = criterion(pred, targ)
                 loss = torch.mean(loss)
-                print(loss)
                 loss.backward()
                 optimizer.step()
                 step += 1
@@ -282,39 +287,42 @@ def train(args, **kwargs):
             print('Epoch {}, time usage: {:.3f}s, average loss: {}/{:.6f}'.format(
                 epoch, end_t - start_t, train_losses, np.average(train_losses)))
             train_losses_all.append(np.average(train_losses))
+            run["ronin/train_fn/batch/total_loss"].append(np.average(train_losses))
 
             if summary_writer is not None:
                 add_summary(summary_writer, train_losses, epoch + 1, 'train')
                 summary_writer.add_scalar('optimizer/lr', optimizer.param_groups[0]['lr'], epoch)
             #
-            # if val_loader is not None:
-            #     network.eval()
-            #     val_outs, val_targets = run_test(network, val_loader, device)
-            #     val_losses = np.average((val_outs - val_targets) ** 2, axis=0)
-            #     avg_loss = np.average(val_losses)
-            #     print('Validation loss: {}/{:.6f}'.format(val_losses, avg_loss))
-            #     scheduler.step(avg_loss)
-            #     if summary_writer is not None:
-            #         add_summary(summary_writer, val_losses, epoch + 1, 'val')
-            #     val_losses_all.append(avg_loss)
-            #     if avg_loss < best_val_loss:
-            #         best_val_loss = avg_loss
-            #         if args.out_dir and osp.isdir(args.out_dir):
-            #             model_path = osp.join(args.out_dir, 'checkpoints', 'checkpoint_%d.pt' % epoch)
-            #             torch.save({'model_state_dict': network.state_dict(),
-            #                         'epoch': epoch,
-            #                         'optimizer_state_dict': optimizer.state_dict()}, model_path)
-            #             print('Model saved to ', model_path)
-            # else:
-            #     if args.out_dir is not None and osp.isdir(args.out_dir):
-            #         if (epoch%20==0):
-            #             model_path = osp.join(args.out_dir, 'checkpoints', 'checkpoint_%d.pt' % epoch)
-            #             torch.save({'model_state_dict': network.state_dict(),
-            #                         'epoch': epoch,
-            #                         'optimizer_state_dict': optimizer.state_dict()}, model_path)
-            #             print('Model saved to ', model_path)
-            #
-            # total_epoch = epoch
+            if val_loader is not None:
+                network.eval()
+                val_outs, val_targets = run_test(network, val_loader, device)
+                val_losses = np.average((val_outs - val_targets) ** 2, axis=0)
+                avg_loss = np.average(val_losses)
+                print('Validation loss: {}/{:.6f}'.format(val_losses, avg_loss))
+                scheduler.step(avg_loss)
+                if summary_writer is not None:
+                    add_summary(summary_writer, val_losses, epoch + 1, 'val')
+                val_losses_all.append(avg_loss)
+                if avg_loss < best_val_loss:
+                    best_val_loss = avg_loss
+                    if args.out_dir and osp.isdir(args.out_dir):
+                        model_path = osp.join(args.out_dir, 'checkpoints', 'checkpoint_%d.pt' % epoch)
+                        torch.save({'model_state_dict': network.state_dict(),
+                                    'epoch': epoch,
+                                    'optimizer_state_dict': optimizer.state_dict()}, model_path)
+                        print('Model saved to ', model_path)
+            else:
+                if args.out_dir is not None and osp.isdir(args.out_dir):
+                    if (epoch%20==0):
+                        model_path = osp.join(args.out_dir, 'checkpoints', 'checkpoint_%d.pt' % epoch)
+                        torch.save({'model_state_dict': network.state_dict(),
+                                    'epoch': epoch,
+                                    'optimizer_state_dict': optimizer.state_dict()}, model_path)
+                        model_path_neptune = "ronin/model_checkpoints/checkpoint_fn_" + str(epoch)
+                        run[model_path_neptune].upload(model_path)
+                        print('Model saved to ', model_path)
+
+            total_epoch = epoch
 
     except KeyboardInterrupt:
         print('-' * 60)
@@ -326,6 +334,8 @@ def train(args, **kwargs):
         torch.save({'model_state_dict': network.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'epoch': total_epoch}, model_path)
+        model_path_neptune = "ronin/model_checkpoints/checkpoint_fn_" + str(epoch)
+        run[model_path_neptune].upload(model_path)
         print('Checkpoint saved to ', model_path)
 
     return train_losses_all, val_losses_all
@@ -471,6 +481,7 @@ def write_config(args):
 
 
 if __name__ == '__main__':
+    run=init_neptune()
 
     import argparse
 
@@ -503,6 +514,7 @@ if __name__ == '__main__':
     parser.add_argument('--ts2vec_pretrained',type=str,default="D:\\000_Mora\\FYP\\ts2vec_checkpoint_200.pt")
 
     args = parser.parse_args()
+    run['parameters']=args
 
     np.set_printoptions(formatter={'all': lambda x: '{:.6f}'.format(x)})
 
