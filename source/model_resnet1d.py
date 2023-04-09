@@ -233,10 +233,13 @@ class ThreeLayerNet(nn.Module):
         self.fc2 = nn.Linear(512, 256)
         self.fc3 = nn.Linear(256, 2)
         self.relu = nn.ReLU()
+        self.dropout=nn.Dropout(0.5)
 
     def forward(self, x):
         x = x.reshape(x.size(0), -1)
         x = self.relu(self.fc1(x))
+        # x=self.dropout(x)
         x = self.relu(self.fc2(x))
+        # x=self.dropout(x)
         x = self.fc3(x)
         return x
