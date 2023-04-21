@@ -91,7 +91,7 @@ def run_test_2(network, data_loader, device,ts2_vec_path,eval_mode=True):
         feat, targ = feat.to(device), targ.to(device)
         feat_c = feat.clone()
         feat_c = torch.transpose(feat_c, 1, 2)
-        feat_c = model.encode(feat_c, encoding_window='full_series' if 0 == 1 else None)
+        feat_c = model.encode(feat_c, encoding_window='multiscale')
         feat_c = torch.transpose(torch.tensor(feat_c, requires_grad=False, device=device), 1, 2)
         pred = network(feat_c.to(device)).cpu().detach().numpy()
         targets_all.append(targ.cpu().detach().numpy())
@@ -287,7 +287,7 @@ def train(args, **kwargs):
             print('Epoch {}, time usage: {:.3f}s, average loss: {}/{:.6f}'.format(
                 epoch, end_t - start_t, train_losses, np.average(train_losses)))
             train_losses_all.append(np.average(train_losses))
-            run["ronin/train_fn/batch/total_loss"].append(np.average(train_losses))
+            # run["ronin/train_fn/batch/total_loss"].append(np.average(train_losses))
 
             if summary_writer is not None:
                 add_summary(summary_writer, train_losses, epoch + 1, 'train')
@@ -319,7 +319,7 @@ def train(args, **kwargs):
                                     'epoch': epoch,
                                     'optimizer_state_dict': optimizer.state_dict()}, model_path)
                         model_path_neptune = "ronin/model_checkpoints/checkpoint_fn_" + str(epoch)
-                        run[model_path_neptune].upload(model_path)
+                        # run[model_path_neptune].upload(model_path)
                         print('Model saved to ', model_path)
 
             total_epoch = epoch
@@ -335,7 +335,7 @@ def train(args, **kwargs):
                     'optimizer_state_dict': optimizer.state_dict(),
                     'epoch': total_epoch}, model_path)
         model_path_neptune = "ronin/model_checkpoints/checkpoint_fn_" + str(epoch)
-        run[model_path_neptune].upload(model_path)
+        # run[model_path_neptune].upload(model_path)
         print('Checkpoint saved to ', model_path)
 
     return train_losses_all, val_losses_all
@@ -481,7 +481,7 @@ def write_config(args):
 
 
 if __name__ == '__main__':
-    run=init_neptune()
+    # run=init_neptune()
 
     import argparse
 
@@ -514,7 +514,7 @@ if __name__ == '__main__':
     parser.add_argument('--ts2vec_pretrained',type=str,default="D:\\000_Mora\\FYP\\ts2vec_checkpoint_200.pt")
 
     args = parser.parse_args()
-    run['parameters']=args
+    # run['parameters']=args
 
     np.set_printoptions(formatter={'all': lambda x: '{:.6f}'.format(x)})
 
