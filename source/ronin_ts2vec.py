@@ -198,7 +198,7 @@ def train(args, **kwargs):
         )
         loss_log = model.fit(
             train_data=train_dataset,
-            n_epochs=200,
+            n_epochs=1000,
             n_iters=None,
             verbose=True,
             args=args
