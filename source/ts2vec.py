@@ -559,6 +559,8 @@ class TS2VecFN:
         if encoding_window == 'full_series':
             if slicing is not None:
                 out = out[:, slicing]
+            import pdb
+            pdb.set_trace()
             out = F.max_pool1d(
                 out.transpose(1, 2),
                 kernel_size=out.size(1),

@@ -91,7 +91,7 @@ def run_test_2(network, data_loader, device,ts2_vec_path,eval_mode=True):
         feat, targ = feat.to(device), targ.to(device)
         feat_c = feat.clone()
         feat_c = torch.transpose(feat_c, 1, 2)
-        feat_c = model.encode(feat_c, encoding_window="multiscale")
+        feat_c = model.encode(feat_c, encoding_window=None)
         feat_c = torch.transpose(torch.tensor(feat_c, requires_grad=False, device=device), 1, 2)
         pred = network(feat_c.to(device)).cpu().detach().numpy()
         targets_all.append(targ.cpu().detach().numpy())
