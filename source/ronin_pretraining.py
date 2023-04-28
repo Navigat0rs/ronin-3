@@ -294,17 +294,16 @@ def train(args, **kwargs):
 
                 for i in range(len(pred)):
                     if (i==0):
-                        loss_2=-criterion_cosine(torch.unsqueeze(v_2[i], 0), torch.unsqueeze(pred_c[i], 0)).requires_grad_(True)
+                        loss_2=1-criterion_cosine(torch.unsqueeze(v_2[i], 0), torch.unsqueeze(pred_c[i], 0)).requires_grad_(True)
                     else:
                         if (torch.norm(pred_c[i]) > 0.5):
                             loss_2 += 1-criterion_cosine(torch.unsqueeze(v_2[i], 0), torch.unsqueeze(pred_c[i], 0)).requires_grad_(True)
                         else:
                             loss_2 += 0
 
-                loss_2=loss_2/len(pred)
-                loss_1 = criterion(pred,targ)
-                loss_1=torch.mean(loss_1)
-                total_loss=loss_1+(0.1*loss_2)
+                # loss_2=loss_2/len(pred)
+                loss_2=criterion(v_2,pred_c)
+                total_loss=loss_2
 
                 optimizer.zero_grad()
                 total_loss.backward()
@@ -319,11 +318,6 @@ def train(args, **kwargs):
             print('Epoch {}, time usage: {:.3f}s, average loss: {}/{:.6f}'.format(
                 epoch, end_t - start_t, train_losses, np.average(train_losses)))
             train_losses_all.append(np.average(train_losses))
-            run["navigator/train/batch/total_loss"].append(np.average(train_losses))
-            run["navigator/train/batch/CosineSimilarity"].append(0.1*loss_1*loss_2)
-            run["navigator/train/batch/MSELoss"].append(loss_1)
-            print("navigator/Cosine similarity: "+str(0.1*loss_1*loss_2))
-            print("navigator/MSELoss: "+str(loss_1))
             print("navigator/total_loss: "+str(total_loss))
 
             if summary_writer is not None:
@@ -356,7 +350,7 @@ def train(args, **kwargs):
                                     'epoch': epoch,
                                     'optimizer_state_dict': optimizer.state_dict()}, model_path)
                         model_path_neptune="navigator/model_checkpoints/checkpoint_"+str(epoch)
-                        run[model_path_neptune].upload(model_path)
+                        # run[model_path_neptune].upload(model_path)
                         print('Model saved to ', model_path)
 
             total_epoch = epoch
@@ -372,7 +366,7 @@ def train(args, **kwargs):
                     'optimizer_state_dict': optimizer.state_dict(),
                     'epoch': total_epoch}, model_path)
         model_path_neptune = "navigator/model_checkpoints/checkpoint_" + str(epoch)
-        run[model_path_neptune].upload(model_path)
+        # run[model_path_neptune].upload(model_path)
         print('Checkpoint saved to ', model_path)
 
     return train_losses_all, val_losses_all
@@ -489,8 +483,8 @@ def test_sequence(args):
                     np.concatenate([pos_pred[:, :2], pos_gt[:, :2]], axis=1))
             plt.savefig(osp.join(args.out_dir, data + '_gsn.png'))
             model_path_neptune = "navigator/out_dir/"+str(data)+"_gsn.png"
-            run[model_path_neptune].upload(osp.join(args.out_dir, data + '_gsn.png'))
-            run[model_path_neptune].upload(osp.join(args.out_dir, data + '_gsn.png'))
+            # run[model_path_neptune].upload(osp.join(args.out_dir, data + '_gsn.png'))
+            # run[model_path_neptune].upload(osp.join(args.out_dir, data + '_gsn.png'))
 
 
         plt.close('all')
@@ -522,10 +516,10 @@ def write_config(args):
 
 
 if __name__ == '__main__':
-    run = neptune.init_run(
-        project="Navigator/Navigator",
-        api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJmYTk4NGQwYS1lMWQxLTQ3YWQtYmQ3NC1lMzBjNDVmNDI3MzAifQ==",
-    )
+    # run = neptune.init_run(
+    #     project="Navigator/Navigator",
+    #     api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJmYTk4NGQwYS1lMWQxLTQ3YWQtYmQ3NC1lMzBjNDVmNDI3MzAifQ==",
+    # )
 
 
     import argparse
@@ -560,7 +554,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     np.set_printoptions(formatter={'all': lambda x: '{:.6f}'.format(x)})
-    run["parameters"] = args
+    # run["parameters"] = args
 
     if args.mode == 'train':
         train(args)
