@@ -292,7 +292,7 @@ def train(args, **kwargs):
             network.train()
             network_p.train()
             train_outs, train_targets = [], []
-            train_cosine_embedded=[]
+            train_rot_mse=[]
             z=0
             for batch_id, (feat, targ, _, _) in enumerate(train_loader):
                 feat, targ = feat.to(device), targ.to(device)
@@ -310,17 +310,14 @@ def train(args, **kwargs):
 
                 v_2=network_p(feat_contrast_c)
 
-                # import pdb
-                # pdb.set_trace()
-                loss_cosine_embedded = criterion_cosineEmbedded(targ_c,v_2, torch.ones(len(targ_c), device=device))
-                loss_cosine_embedded=torch.mean(loss_cosine_embedded)
-                train_cosine_embedded.append(loss_cosine_embedded.cpu().detach().numpy())
                 loss_p=criterion_p(pred, targ)
                 loss_p=torch.mean(loss_p)
-                # loss_t=criterion(v_2,targ_c)
-                # loss_t=torch.mean(loss_t)
+                loss_t=criterion(v_2,targ_c)
+                loss_t=torch.mean(loss_t)
 
-                total_loss=loss_p+args.hyper_cos*loss_cosine_embedded
+                train_rot_mse.append(loss_t.cpu().detach().numpy())
+
+                total_loss=loss_p+args.hyper_cos*loss_t
 
                 optimizer.zero_grad()
                 total_loss.backward()
@@ -335,10 +332,9 @@ def train(args, **kwargs):
             print('Epoch {}, time usage: {:.3f}s, average real loss: {}/{:.6f}'.format(
                 epoch, end_t - start_t, train_losses, np.average(train_losses)))
 
-            print("cosine_embedded_loss: "+str(np.average(train_cosine_embedded)))
+            print("rot_mse_loss: "+str(np.average(train_rot_mse)))
             train_losses_all.append(np.average(train_losses))
             run["navigator/train/batch/total_real_loss"].append(np.average(train_losses))
-            run["navigator/train/batch/total_cosine_loss"].append(np.average(train_cosine_embedded))
 
             if summary_writer is not None:
                 add_summary(summary_writer, train_losses, epoch + 1, 'train')
@@ -370,7 +366,7 @@ def train(args, **kwargs):
                                     'epoch': epoch,
                                     'optimizer_state_dict': optimizer.state_dict()}, model_path)
                         model_path_neptune="navigator/model_checkpoints/checkpoint_"+str(epoch)
-                        # run[model_path_neptune].upload(model_path)
+                        run[model_path_neptune].upload(model_path)
                         print('Model saved to ', model_path)
 
             total_epoch = epoch
@@ -386,7 +382,7 @@ def train(args, **kwargs):
                     'optimizer_state_dict': optimizer.state_dict(),
                     'epoch': total_epoch}, model_path)
         model_path_neptune = "navigator/model_checkpoints/checkpoint_" + str(epoch)
-        # run[model_path_neptune].upload(model_path)
+        run[model_path_neptune].upload(model_path)
         print('Checkpoint saved to ', model_path)
 
     return train_losses_all, val_losses_all
@@ -571,7 +567,7 @@ if __name__ == '__main__':
     parser.add_argument('--feature_sigma', type=float, default=0.00001)
     parser.add_argument('--target_sigma', type=float, default=0.00001)
     parser.add_argument('--pretrained',type=str,default="D:\\000_Mora\\FYP\\Navigators\\Testing\\2023_13_01_testing_Navigator\\models\\checkpoints\\checkpoint_999.pt")
-    parser.add_argument("--hyper_cos", type=float,default=0.1)
+    parser.add_argument("--hyper_cos", type=float,default=1)
 
     args = parser.parse_args()
 
