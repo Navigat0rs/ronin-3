@@ -61,7 +61,7 @@ def get_model_p(args):
             device = torch.device('cuda:0')
             checkpoint = torch.load(model_path)
         network_p.load_state_dict(checkpoint['model_state_dict'])
-        network_p.eval().to(device)
+        network_p.train().to(device)
     return network_p
 
 def targetTransformationModule(input_array, random_degrees, device):
@@ -247,7 +247,7 @@ def train(args, **kwargs):
     criterion_cosineEmbedded=torch.nn.CosineEmbeddingLoss(margin=0.0)
     criterion = torch.nn.MSELoss()
     criterion_p=torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(network.parameters(), args.lr,weight_decay=0.001)
+    optimizer = torch.optim.Adam(network_p.parameters(), args.lr,weight_decay=0.001)
     scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer, factor=0.1, patience=10, verbose=True, eps=1e-12)
 
     start_epoch = 0
@@ -269,7 +269,7 @@ def train(args, **kwargs):
     train_losses_all, val_losses_all = [], []
 
     # Get the initial loss.
-    init_train_targ, init_train_pred = run_test(network, train_loader, device, eval_mode=False)
+    init_train_targ, init_train_pred = run_test(network_p, train_loader, device, eval_mode=False)
 
     init_train_loss = np.mean((init_train_targ - init_train_pred) ** 2, axis=0)
     train_losses_all.append(np.mean(init_train_loss))
@@ -290,46 +290,37 @@ def train(args, **kwargs):
         for epoch in range(start_epoch, args.epochs):
             start_t = time.time()
             network.train()
+            network_p.train()
             train_outs, train_targets = [], []
             train_cosine_embedded=[]
-            train_psudo=[]
-            train_rot_mse=[]
             z=0
             for batch_id, (feat, targ, _, _) in enumerate(train_loader):
                 feat, targ = feat.to(device), targ.to(device)
                 feat_copy=feat.detach().requires_grad_(False)
-                feat_for_pretrain=feat.detach().requires_grad_(False)
-                pred = network(feat)
-                psudo=network_p(feat_for_pretrain)
-                psudo_copy=psudo.detach().requires_grad_(False)
+                pred = network_p(feat)
+
                 feat_contrast, random_degrees = featTransformationModule(feat_copy, device)
                 feat_contrast_c=feat_contrast.detach().requires_grad_(False)
 
                 train_outs.append(pred.cpu().detach().numpy())
                 train_targets.append(targ.cpu().detach().numpy())
-                train_psudo.append(psudo.cpu().detach().numpy())
-                feat=feat.detach().requires_grad_(False)
-                pred_copy=pred.detach().requires_grad_(False)
 
-                # pred_c = targetTransformationModule(pred, random_degrees, device)
-                psudo_c=targetTransformationModule(psudo_copy,random_degrees,device)
-                psudo_c=psudo_c.detach().requires_grad_(False)
-                # pred_c=pred_c.detach().requires_grad_(False)
+                targ_c=targetTransformationModule(targ,random_degrees,device)
+                targ_c=targ_c.detach().requires_grad_(False)
 
-                v_2=network(feat_contrast_c)
+                v_2=network_p(feat_contrast_c)
 
                 # import pdb
                 # pdb.set_trace()
-                # loss_cosine_embedded = criterion_cosineEmbedded(psudo_c,v_2, torch.ones(len(psudo_c), device=device))
-                # loss_cosine_embedded=torch.mean(loss_cosine_embedded)
-                # train_cosine_embedded.append(loss_cosine_embedded.cpu().detach().numpy())
-                loss_p=criterion_p(pred, psudo)
+                loss_cosine_embedded = criterion_cosineEmbedded(targ_c,v_2, torch.ones(len(targ_c), device=device))
+                loss_cosine_embedded=torch.mean(loss_cosine_embedded)
+                train_cosine_embedded.append(loss_cosine_embedded.cpu().detach().numpy())
+                loss_p=criterion_p(pred, targ)
                 loss_p=torch.mean(loss_p)
-                loss_t=criterion(v_2,psudo_c)
-                loss_t=torch.mean(loss_t)
-                train_rot_mse.append(loss_t.cpu().detach().numpy())
+                # loss_t=criterion(v_2,targ_c)
+                # loss_t=torch.mean(loss_t)
 
-                total_loss=loss_p+args.hyper_cos*loss_t
+                total_loss=loss_p+args.hyper_cos*loss_cosine_embedded
 
                 optimizer.zero_grad()
                 total_loss.backward()
@@ -337,22 +328,17 @@ def train(args, **kwargs):
                 step += 1
             train_outs = np.concatenate(train_outs, axis=0)
             train_targets = np.concatenate(train_targets, axis=0)
-            train_psudo=np.concatenate(train_psudo,axis=0)
             train_losses = np.average((train_outs - train_targets) ** 2, axis=0)
-            psudo_losses=np.average((train_outs-train_psudo)**2,axis=0)
 
             end_t = time.time()
             print('-------------------------')
             print('Epoch {}, time usage: {:.3f}s, average real loss: {}/{:.6f}'.format(
                 epoch, end_t - start_t, train_losses, np.average(train_losses)))
-            print("average_psudo_loss: ",str(np.average(psudo_losses)))
-            # print("cosine_embedded_loss: "+str(np.average(train_cosine_embedded)))
-            print("rot_mse_loss: " + str(np.average(train_rot_mse)))
+
+            print("cosine_embedded_loss: "+str(np.average(train_cosine_embedded)))
             train_losses_all.append(np.average(train_losses))
             run["navigator/train/batch/total_real_loss"].append(np.average(train_losses))
-            run["navigator/train/batch/total_psudo_loss"].append(np.average(psudo_losses))
-            # run["navigator/train/batch/total_cosine_loss"].append(np.average(train_cosine_embedded))
-            run["navigator/train/batch/rot_mse_loss"].append(np.average(train_rot_mse))
+            run["navigator/train/batch/total_cosine_loss"].append(np.average(train_cosine_embedded))
 
             if summary_writer is not None:
                 add_summary(summary_writer, train_losses, epoch + 1, 'train')
@@ -384,7 +370,7 @@ def train(args, **kwargs):
                                     'epoch': epoch,
                                     'optimizer_state_dict': optimizer.state_dict()}, model_path)
                         model_path_neptune="navigator/model_checkpoints/checkpoint_"+str(epoch)
-                        run[model_path_neptune].upload(model_path)
+                        # run[model_path_neptune].upload(model_path)
                         print('Model saved to ', model_path)
 
             total_epoch = epoch
@@ -400,7 +386,7 @@ def train(args, **kwargs):
                     'optimizer_state_dict': optimizer.state_dict(),
                     'epoch': total_epoch}, model_path)
         model_path_neptune = "navigator/model_checkpoints/checkpoint_" + str(epoch)
-        run[model_path_neptune].upload(model_path)
+        # run[model_path_neptune].upload(model_path)
         print('Checkpoint saved to ', model_path)
 
     return train_losses_all, val_losses_all
@@ -584,8 +570,8 @@ if __name__ == '__main__':
     parser.add_argument('--model_path', type=str, default=None)
     parser.add_argument('--feature_sigma', type=float, default=0.00001)
     parser.add_argument('--target_sigma', type=float, default=0.00001)
-    parser.add_argument('--pretrained',type=str,default="D:\\000_Mora\\FYP\\RONiN\\Pre_trained models\\ronin_resnet\\ronin_resnet\\checkpoint_gsn_latest.pt")
-    parser.add_argument("--hyper_cos", type=float,default=1)
+    parser.add_argument('--pretrained',type=str,default="D:\\000_Mora\\FYP\\Navigators\\Testing\\2023_13_01_testing_Navigator\\models\\checkpoints\\checkpoint_999.pt")
+    parser.add_argument("--hyper_cos", type=float,default=0.1)
 
     args = parser.parse_args()
 
