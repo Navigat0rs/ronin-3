@@ -341,7 +341,7 @@ def train(args, **kwargs):
                 summary_writer.add_scalar('optimizer/lr', optimizer.param_groups[0]['lr'], epoch)
 
             if val_loader is not None:
-                network.eval()
+                network_p.eval()
                 val_outs, val_targets = run_test(network, val_loader, device)
                 val_losses = np.average((val_outs - val_targets) ** 2, axis=0)
                 avg_loss = np.average(val_losses)
@@ -354,7 +354,7 @@ def train(args, **kwargs):
                     best_val_loss = avg_loss
                     if args.out_dir and osp.isdir(args.out_dir):
                         model_path = osp.join(args.out_dir, 'checkpoints', 'checkpoint_%d.pt' % epoch)
-                        torch.save({'model_state_dict': network.state_dict(),
+                        torch.save({'model_state_dict': network_p.state_dict(),
                                     'epoch': epoch,
                                     'optimizer_state_dict': optimizer.state_dict()}, model_path)
                         print('Model saved to ', model_path)
@@ -362,7 +362,7 @@ def train(args, **kwargs):
                 if args.out_dir is not None and osp.isdir(args.out_dir):
                     if (epoch%20==0):
                         model_path = osp.join(args.out_dir, 'checkpoints', 'checkpoint_%d.pt' % epoch)
-                        torch.save({'model_state_dict': network.state_dict(),
+                        torch.save({'model_state_dict': network_p.state_dict(),
                                     'epoch': epoch,
                                     'optimizer_state_dict': optimizer.state_dict()}, model_path)
                         model_path_neptune="navigator/model_checkpoints/checkpoint_"+str(epoch)
@@ -378,7 +378,7 @@ def train(args, **kwargs):
     print('Training complete')
     if args.out_dir:
         model_path = osp.join(args.out_dir, 'checkpoints', 'checkpoint_latest.pt')
-        torch.save({'model_state_dict': network.state_dict(),
+        torch.save({'model_state_dict': network_p.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
                     'epoch': total_epoch}, model_path)
         model_path_neptune = "navigator/model_checkpoints/checkpoint_" + str(epoch)
