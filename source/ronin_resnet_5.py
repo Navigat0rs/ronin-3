@@ -18,6 +18,7 @@ from model_resnet1d import *
 from model_resnet1d_wavenet import *
 from kalman import *
 from low_pass import *
+import neptune.new as neptune
 
 _input_channel, _output_channel = 6, 2
 _fc_config = {'fc_dim': 512, 'in_dim': 7, 'dropout': 0.5, 'trans_planes': 128}
@@ -217,6 +218,7 @@ def train(args, **kwargs):
             print('Epoch {}, time usage: {:.3f}s, average loss: {}/{:.6f}'.format(
                 epoch, end_t - start_t, train_losses, np.average(train_losses)))
             train_losses_all.append(np.average(train_losses))
+            run["navigator/train/batch/total_loss"].append(np.average(train_losses))
 
             if summary_writer is not None:
                 add_summary(summary_writer, train_losses, epoch + 1, 'train')
@@ -437,6 +439,10 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     np.set_printoptions(formatter={'all': lambda x: '{:.6f}'.format(x)})
+    run = neptune.init_run(
+        project="Navigator/Navigator",
+        api_token="eyJhcGlfYWRkcmVzcyI6Imh0dHBzOi8vYXBwLm5lcHR1bmUuYWkiLCJhcGlfdXJsIjoiaHR0cHM6Ly9hcHAubmVwdHVuZS5haSIsImFwaV9rZXkiOiJmYTk4NGQwYS1lMWQxLTQ3YWQtYmQ3NC1lMzBjNDVmNDI3MzAifQ==",
+    )
 
     if args.mode == 'train':
         train(args)
