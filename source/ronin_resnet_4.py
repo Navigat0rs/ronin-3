@@ -1,3 +1,7 @@
+#post training after pretraining from ronin_resnet_3
+#without freezing all the layers and train with some label data
+
+
 import os
 import pdb
 import time
