@@ -82,6 +82,14 @@ def load_cached_sequences(seq_type, root_dir, data_list, cache_path, **kwargs):
             json.dump(info, open(osp.join(cache_path, 'config.json'), 'w'))
 
     features_all, targets_all, aux_all = [], [], []
+    dic={}
+    total=0
+    percentage=1/5
+    current=0
+    selected_sequence=[]
+    target=1852712.0*5
+    seen_list=['a059', 'a033', 'a003', 'a014', 'a012', 'a000', 'a022', 'a004', 'a037', 'a030', 'a046', 'a023', 'a047', 'a044', 'a020', 'a026', 'a043', 'a018', 'a038', 'a005', 'a013', 'a016', 'a009',
+ 'a021', 'a017', 'a027', 'a034', 'a001', 'a025', 'a031', 'a011', 'a036', 'a010', 'a035']
     for i in range(len(data_list)):
         if cache_path is not None and osp.exists(osp.join(cache_path, data_list[i] + '.hdf5')):
             with h5py.File(osp.join(cache_path, data_list[i] + '.hdf5')) as f:
@@ -100,6 +108,16 @@ def load_cached_sequences(seq_type, root_dir, data_list, cache_path, **kwargs):
         features_all.append(feat)
         targets_all.append(targ)
         aux_all.append(aux)
+        dic[data_list[i]]=len(feat)
+        total+=len(feat)
+    print(dic)
+    for i in (dic.keys()):
+        if ((total*percentage >= current + dic[i]) and (i.split("_")[0] in seen_list)):
+        # if (target*percentage>=current+dic[i]):
+            current+=dic[i]
+            selected_sequence.append(i)
+    import pdb
+    pdb.set_trace()
     return features_all, targets_all, aux_all
 
 
