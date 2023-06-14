@@ -89,11 +89,30 @@ def get_dataset(root_dir, data_list, args, **kwargs):
     _input_channel, _output_channel = dataset.feature_dim, dataset.target_dim
     return dataset
 
+def get_dataset_2(root_dir, data_list):
+
+    random_shift, shuffle, transforms, grv_only = 0, False, None, False
+    shuffle = False
+    grv_only = True
+    seq_type = GlobSpeedSequence
+
+    dataset = StridedSequenceDataset(
+        seq_type, root_dir, data_list, None, 10, 200,
+        random_shift=random_shift, transform=transforms,
+        shuffle=shuffle, grv_only=grv_only, max_ori_error=20)
+
+    global _input_channel, _output_channel
+    _input_channel, _output_channel = dataset.feature_dim, dataset.target_dim
+    return dataset
+
 
 def get_dataset_from_list(root_dir, list_path, args, **kwargs):
     with open(list_path) as f:
         data_list = [s.strip().split(',' or ' ')[0] for s in f.readlines() if len(s) > 0 and s[0] != '#']
     return get_dataset(root_dir, data_list, args, **kwargs)
+
+def get_dataset_from_list_2(root_dir, list):
+    return get_dataset_2(root_dir, list)
 
 
 def train(args, **kwargs):

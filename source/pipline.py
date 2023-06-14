@@ -120,20 +120,20 @@ def run_test(network, data_loader, device, eval_mode=True):
     return targets_all, preds_all
 
 
-a=np.random.uniform(0.1, 0.8, size=(1, 200, 6))
-_fc_config = {'fc_dim': 512, 'in_dim': 7, 'dropout': 0.5, 'trans_planes': 128}
-network = ResNet1D(6, 2, BasicBlock1D, [2, 2, 2, 2],
-                           base_plane=64, output_block=FCOutputModule, kernel_size=3, **_fc_config)
-checkpoint = torch.load("D:\\000_Mora\\FYP\\RONiN\\Pre_trained models\\ronin_resnet\\ronin_resnet\\checkpoint_gsn_latest.pt")
-network.load_state_dict(checkpoint['model_state_dict'])
-device = torch.device('cuda:0')
-network.eval().to(device)
-
-a=preprocess(a)
-import pdb
-pdb.set_trace()
-z=network(a)
-print(z)
+# a=np.random.uniform(0.1, 0.8, size=(1, 200, 6))
+# _fc_config = {'fc_dim': 512, 'in_dim': 7, 'dropout': 0.5, 'trans_planes': 128}
+# network = ResNet1D(6, 2, BasicBlock1D, [2, 2, 2, 2],
+#                            base_plane=64, output_block=FCOutputModule, kernel_size=3, **_fc_config)
+# checkpoint = torch.load("D:\\000_Mora\\FYP\\RONiN\\Pre_trained models\\ronin_resnet\\ronin_resnet\\checkpoint_gsn_latest.pt")
+# network.load_state_dict(checkpoint['model_state_dict'])
+# device = torch.device('cuda:0')
+# network.eval().to(device)
+#
+# a=preprocess(a)
+# import pdb
+# pdb.set_trace()
+# z=network(a)
+# print(z)
 
 
 
